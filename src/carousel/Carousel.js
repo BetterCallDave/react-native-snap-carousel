@@ -13,6 +13,8 @@ import {
 } from '../utils/animations';
 
 const IS_IOS = Platform.OS === 'ios';
+const IS_ANDROID = Platform.OS === 'android';
+
 
 // Native driver for scroll events
 // See: https://facebook.github.io/react-native/blog/2017/02/14/using-native-driver-for-animated.html
@@ -1067,6 +1069,36 @@ export default class Carousel extends Component {
                 }, 250);
             }
         }
+        const requiresManualTrigger = !animated || IS_ANDROID;
+        if (requiresManualTrigger) {
+            this._activeItem = index;
+
+            if (fireCallback) {
+                onSnapToItem && onSnapToItem(this._getDataIndex(index));
+            }
+
+            // Repositioning on Android
+            if (IS_ANDROID && this._shouldRepositionScroll(index)) {
+                if (animated) {
+                    this._androidRepositioningTimeout = setTimeout(() => {
+                        // Without scroll animation, the behavior is completely buggy...
+                        this._repositionScroll(index, false);
+                    }, 400); // Approximate scroll duration on Android
+                } else {
+                    this._repositionScroll(index);
+                }
+            }
+        }
+    }
+
+    _shouldRepositionScroll (index) {
+        const { data, enableSnap, loopClonesPerSide } = this.props;
+        const dataLength = data && data.length;
+        if (!enableSnap || !dataLength || !this._enableLoop() ||
+            (index >= loopClonesPerSide && index < dataLength + loopClonesPerSide)) {
+            return false;
+        }
+        return true;
     }
 
     _onBeforeSnap (index) {
